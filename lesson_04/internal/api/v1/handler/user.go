@@ -10,22 +10,27 @@ import (
 type UserHandler struct {
 }
 
+type GetUserByIDV1Param struct {
+	ID int `uri:"id" binding:"gt=0"`
+}
+
+type GetUserByUUIDV1Param struct {
+	UUID string `uri:"uuid" binding:"uuid"`
+}
+
 func NewUserHandler() *UserHandler {
 	return &UserHandler{}
 }
 
 func (u *UserHandler) GetUserByUUIDV1(ctx *gin.Context) {
-	uuidStr := ctx.Param("uuid")
-	uid, err := utils.ValidationUuid("UUID", uuidStr)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+	var params GetUserByUUIDV1Param
+	if err := ctx.ShouldBindUri(&params); err != nil {
+		ctx.JSON(http.StatusBadRequest, utils.HandleValidationError(err))
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{
 		"message":   "Get user by UUID",
-		"user_uuid": uid,
+		"user_uuid": params.UUID,
 	})
 }
 
@@ -34,18 +39,15 @@ func (u *UserHandler) GetUsersV1(ctx *gin.Context) {
 }
 
 func (u *UserHandler) GetUserByIDV1(ctx *gin.Context) {
-	idStr := ctx.Param("id")
-	id, err := utils.ValidationPositiveInt("ID", idStr)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+	var params GetUserByIDV1Param
+	if err := ctx.ShouldBindUri(&params); err != nil {
+		ctx.JSON(http.StatusBadRequest, utils.HandleValidationError(err))
 		return
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": "Get user by Id v1",
-		"user_id": id,
+		"user_id": params.ID,
 	})
 }
 

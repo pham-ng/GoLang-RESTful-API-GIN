@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"unicode/utf8"
 
+	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 )
 
@@ -69,4 +71,53 @@ func ValidationInList(fieldName, value string, allowed map[string]bool) error {
 		return fmt.Errorf("%s must be one of: %v", fieldName, keys(allowed))
 	}
 	return nil
+}
+
+func HandleValidationError(err error) gin.H {
+	if validationError, ok := err.(validator.ValidationErrors); ok {
+		errors := make(map[string]string)
+		for _, e := range validationError {
+			switch e.Tag() {
+			case "required":
+				errors[e.Field()] = e.Field() + " is required"
+			case "gt":
+				errors[e.Field()] = e.Field() + " must be greater than " + e.Param()
+			case "gte":
+				errors[e.Field()] = e.Field() + " must be greater than or equal to " + e.Param()
+			case "lt":
+				errors[e.Field()] = e.Field() + " must be less than " + e.Param()
+			case "lte":
+				errors[e.Field()] = e.Field() + " must be less than or equal to " + e.Param()
+			case "min":
+				errors[e.Field()] = e.Field() + " must be at least " + e.Param()
+			case "max":
+				errors[e.Field()] = e.Field() + " must be at most " + e.Param()
+			case "len":
+				errors[e.Field()] = e.Field() + " must have length " + e.Param()
+			case "oneof":
+				errors[e.Field()] = e.Field() + " must be one of: " + e.Param()
+			case "uuid":
+				errors[e.Field()] = e.Field() + " must be valid uuid"
+			case "email":
+				errors[e.Field()] = e.Field() + " must be a valid email"
+			case "url":
+				errors[e.Field()] = e.Field() + " must be a valid URL"
+			case "numeric":
+				errors[e.Field()] = e.Field() + " must be a number"
+			case "alpha":
+				errors[e.Field()] = e.Field() + " must contain only letters"
+			case "alphanum":
+				errors[e.Field()] = e.Field() + " must contain only letters and numbers"
+			default:
+				errors[e.Field()] = e.Field() + " is invalid"
+			}
+		}
+		return gin.H{
+			"error": errors,
+		}
+
+	}
+	return gin.H{
+		"error": "Request invalid" + err.Error(),
+	}
 }

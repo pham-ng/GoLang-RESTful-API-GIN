@@ -21,3 +21,6 @@ vendor/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Go build cache
+.gocache/
