@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 )
@@ -78,39 +80,35 @@ func HandleValidationError(err error) gin.H {
 		errors := make(map[string]string)
 		for _, e := range validationError {
 			switch e.Tag() {
-			case "required":
-				errors[e.Field()] = e.Field() + " is required"
 			case "gt":
-				errors[e.Field()] = e.Field() + " must be greater than " + e.Param()
-			case "gte":
-				errors[e.Field()] = e.Field() + " must be greater than or equal to " + e.Param()
+				errors[e.Field()] = e.Field() + " must greater  than minimum"
 			case "lt":
-				errors[e.Field()] = e.Field() + " must be less than " + e.Param()
+				errors[e.Field()] = e.Field() + " must less than maximum"
+			case "gte":
+				errors[e.Field()] = e.Field() + " must equal or greater than minimum"
 			case "lte":
-				errors[e.Field()] = e.Field() + " must be less than or equal to " + e.Param()
-			case "min":
-				errors[e.Field()] = e.Field() + " must be at least " + e.Param()
-			case "max":
-				errors[e.Field()] = e.Field() + " must be at most " + e.Param()
-			case "len":
-				errors[e.Field()] = e.Field() + " must have length " + e.Param()
-			case "oneof":
-				errors[e.Field()] = e.Field() + " must be one of: " + e.Param()
+				errors[e.Field()] = e.Field() + " must equal less than maximum"
 			case "uuid":
 				errors[e.Field()] = e.Field() + " must be valid uuid"
+			case "slug":
+				errors[e.Field()] = e.Field() + " must be characters, hyphens and dots"
+			case "min":
+				errors[e.Field()] = fmt.Sprintf("%s must longer than %s", e.Field(), e.Param())
+			case "max":
+				errors[e.Field()] = fmt.Sprintf("%s must shortter than %s", e.Field(), e.Param())
+			case "oneof":
+				allowedValues := strings.Join(strings.Split(e.Param(), " "), ",")
+				errors[e.Field()] = fmt.Sprintf("%s must be one of %s", e.Field(), allowedValues)
+			case "required":
+				errors[e.Field()] = e.Field() + " must required"
+			case "search":
+				errors[e.Field()] = e.Field() + " must be lower case, uppercase and spaces"
 			case "email":
-				errors[e.Field()] = e.Field() + " must be a valid email"
-			case "url":
-				errors[e.Field()] = e.Field() + " must be a valid URL"
-			case "numeric":
-				errors[e.Field()] = e.Field() + " must be a number"
-			case "alpha":
-				errors[e.Field()] = e.Field() + " must contain only letters"
-			case "alphanum":
-				errors[e.Field()] = e.Field() + " must contain only letters and numbers"
-			default:
-				errors[e.Field()] = e.Field() + " is invalid"
+				errors[e.Field()] = e.Field() + " must follow email format"
+			case "datetime":
+				errors[e.Field()] = e.Field() + "must follow datetime format"
 			}
+
 		}
 		return gin.H{
 			"error": errors,
@@ -120,4 +118,23 @@ func HandleValidationError(err error) gin.H {
 	return gin.H{
 		"error": "Request invalid" + err.Error(),
 	}
+}
+
+func RegisterValidators() error {
+	v, ok := binding.Validator.Engine().(*validator.Validate)
+	if !ok {
+		return fmt.Errorf("Failed to get validator engine")
+	}
+	var slugRegex = regexp.MustCompile(`^[a-z0-9]+(?:[-.][a-z0-9]+)*$`)
+	if err := v.RegisterValidation("slug", func(fl validator.FieldLevel) bool {
+		return slugRegex.MatchString(fl.Field().String())
+	}); err != nil {
+		return err
+	}
+
+	var searchRegex = regexp.MustCompile(`^[a-zA-Z0-9 ]+$`)
+	v.RegisterValidation("search", func(fl validator.FieldLevel) bool {
+		return searchRegex.MatchString(fl.Field().String())
+	})
+	return nil
 }

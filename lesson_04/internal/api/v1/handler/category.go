@@ -11,6 +11,9 @@ import (
 
 type CategoryHandler struct {
 }
+type GetCategoryByCategoryV1Param struct {
+	Category string `uri:"category" binding:"oneof=php python golang java javascript cpp csharp rust"`
+}
 
 // Danh sách category hợp lệ (dùng slug: chữ thường, không dấu cách, không ký tự đặc biệt).
 // "C/C++" và "C#" không dùng được trên URL ("/" tách đường dẫn, "#" là fragment),
@@ -48,15 +51,14 @@ func (c *CategoryHandler) GetCategoriesV1(ctx *gin.Context) {
 }
 
 func (c *CategoryHandler) GetCategoryByCategoryV1(ctx *gin.Context) {
-	category := ctx.Param("category")
-	if err := utils.ValidationInList("Category", category, validCategory); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error()})
+	var params GetCategoryByCategoryV1Param
+	if err := ctx.ShouldBindUri(&params); err != nil {
+		ctx.JSON(http.StatusBadRequest, utils.HandleValidationError(err))
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{
-		"message":  "Category found",
-		"category": category,
+		"message":  "Category Found",
+		"category": params.Category,
 	})
 }
 

@@ -5,10 +5,14 @@ import (
 
 	v1handler "myapp/lesson_04/internal/api/v1/handler"
 	v2handler "myapp/lesson_04/internal/api/v2/handler"
+	"myapp/lesson_04/utils"
 )
 
 func main() {
 	r := gin.Default()
+	if err := utils.RegisterValidators(); err != nil {
+		panic(err)
+	}
 
 	v1 := r.Group("/api/v1")
 	{

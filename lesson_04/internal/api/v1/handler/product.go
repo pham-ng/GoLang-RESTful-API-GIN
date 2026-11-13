@@ -2,8 +2,7 @@ package v1handler
 
 import (
 	"net/http"
-	"regexp"
-	"strings"
+	"time"
 
 	"myapp/lesson_04/utils"
 
@@ -13,62 +12,55 @@ import (
 type ProductHandler struct {
 }
 
+type GetProductBySlugV1Param struct {
+	Slug string `uri:"slug" binding:"slug,min=5,max=100"`
+}
+
+type GetProductsV1Param struct {
+	Search string `form:"search" binding:"required,min=3,max=50,search"`
+	Limit  int    `form:"limit" binding:"omitempty,gte=1,lte=100"`
+	Email  string `form:"email" binding:"omitempty,email"`
+	Date   string `form:"date" binding:"omitempty,datetime=2-1-2006"`
+}
+
 func NewProductHandler() *ProductHandler {
 	return &ProductHandler{}
 }
 
-var (
-	slugRegex   = regexp.MustCompile(`^[a-z0-9]+(?:[-.][a-z0-9]+)*$`)
-	searchRegex = regexp.MustCompile(`^[a-zA-Z0-9 ]+$`)
-)
-
-const maxLimit = 100
-
 func (p *ProductHandler) GetProductsV1(ctx *gin.Context) {
 	// search là bắt buộc: phải có, dài 3-50 ký tự, chỉ gồm chữ, số và dấu cách.
-	search := strings.TrimSpace(ctx.Query("search"))
-	if err := utils.ValidationRequired("Search", search); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	var params GetProductsV1Param
+	if err := ctx.ShouldBindQuery(&params); err != nil {
+		ctx.JSON(http.StatusBadRequest, utils.HandleValidationError(err))
 		return
 	}
-	if err := utils.ValidationStringLength("Search", search, 3, 50); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	if params.Limit == 0 {
+		params.Limit = 1
 	}
-	if err := utils.ValidationRegex("Search", search, searchRegex, "must contain only letters, numbers and spaces"); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	if params.Email == "" {
+		params.Email = "No email"
 	}
-
-	limit, err := utils.ValidationPositiveInt("Limit", ctx.DefaultQuery("limit", "10"))
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	if limit > maxLimit {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Limit must not exceed 100"})
-		return
+	if params.Date == "" {
+		params.Date = time.Now().Format("2-1-2006")
 	}
 	ctx.JSON(http.StatusOK, gin.H{
-		"message": "List all Products v1",
-		"search":  search,
-		"limit":   limit,
+		"message": "List all products(v1)",
+		"search":  params.Search,
+		"limit":   params.Limit,
+		"email":   params.Email,
+		"date":    params.Date,
 	})
 }
 
 func (p *ProductHandler) GetProductBySlugV1(ctx *gin.Context) {
-	slug := ctx.Param("slug")
-
-	if err := utils.ValidationRegex("Slug", slug, slugRegex, "must contain only lowercase letters, numbers, hyphens and dots"); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+	var params GetProductBySlugV1Param
+	if err := ctx.ShouldBindUri(&params); err != nil {
+		ctx.JSON(http.StatusBadRequest, utils.HandleValidationError(err))
 		return
 	}
-
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": "Get product by slug v1",
-		"slug":    slug,
+		"slug":    params.Slug,
 	})
 }
 
